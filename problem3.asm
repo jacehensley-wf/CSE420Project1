@@ -1,91 +1,91 @@
+# This is file is assemble written for the following C Program:
+
+# int  sum  =  0;  int  *sump  =  &sum;
+# int  a[10];
+# void  PSum(int  *s,  int  *e)
+# {
+#   *s  +=  *e;
+# }
+# int  main()
+# {
+#   for  (int  i=0;  i<10;  i++)
+#   {
+#    a[i]  = 3(i+1);
+#   }
+#   for  (int  i=0;  i<10;  i++)
+#   {
+#     PSum(sump,  a+i);
+#   }
+# printf("?sum  =  %d\n"?,  sum);
+# }
+
 .data
-array: 	.word 0 : 10
+array: 		.word 	0:10
+sum:		.word	0
+strResult:	.asciiz	"sum = "
+strCR:		.asciiz "\n"
 
 .text
-		.globl main
-
-main:		
-		la 	$s0, array # $s1 holds the address to string
-		li 	$s1, 0 # i = 0
-
-initArray:
-		bge $s1, 10, doneInitArray
-    		add $s3, $s1, $s1    # double the index
-    		add $s3, $s3, $s3    # double the index again (now 4x)
-    		add $s2, $s3, $s0    # combine the two components of the address
-    		addi $s4, $s1, 1
-    		li $s5, 3
-    		    		
-    		move $a0, $s5
-    		move $a1, $s4
-    		jal mult
-    		
-    		move $s4, $v0
-    		
-    		sw $s4, 0($s2)       # get the value from the array cell
+		.globl 	main
 		
-		addi $s1, $s1, 1		
-				
-		j initArray
+main:		#add $sp, $sp, 4		# Make room on the stack for local variable sum
 		
-doneInitArray:
-
-		li 	$s1, 0 # i = 0
-		li 	$s5, 0 # sum = 0
-		add	$sp, $sp, 4 # create space for 1 local variable
-		sw 	$s5, 0($sp)	# need to save this in memory to create a pointer
-sumArray:
-		bge $s1, 10, doneSumArray
-    		add $s3, $s1, $s1    # double the index
-    		add $s3, $s3, $s3    # double the index again (now 4x)
-    		add $s2, $s3, $s0    # combine the two components of the address
-  
-    	  				
-    		lw $t1, 0($s6)
+		la $s0, sum		# Load the address of sum in $s0, AKA sump
+		la $s1, array		# Load the address of array into $s1
+		move $s2, $zero		# $t0 = i = 0
+		li $t1, 4		# This will be the address offset added to the array address
+		li $t2, 10		# This is the reference value for the for loops
+		li $t3, 3		# This value will be used to multiply (i+1)
+		move $a0, $s1		# $a0 will help with iterating over the array
 		
-		li $v0, 1
-		move $a0, $t1
-		syscall		
-    		
-    				
-    		move $a0, $s5						
-    		move $a1, $s2
-    		
-    		jal pSum
-    		
-		addi $s1, $s1, 1
-				
-		j sumArray
+first_for:	bge $s2, $t2, end_first_for	# Break from the for loop if i = 10
+		addi $t4, $s2, 1	# Add 1 to intermediate value
+		mul $t4, $t4, $t3	# $t4 = 3(i+1)
+		sw $t4, ($a0)		# Store 3(i+1) at the next address
+		add $a0, $a0, $t1	# Add the address offset to a0 for next iteration
+		addi $s2, $s2, 1	# Increment i
+		and $t4, $t4, $zero	# Clear $t4 for next iteration
+		j first_for		# Jump back to beginning of loop
 		
-doneSumArray:
-
-		lw $t1, 0($sp)
 		
-		li $v0, 1
-		move $a0, $t1
+end_first_for:	move $s2, $zero		# Reset i variable
+		move $a0, $s1		# $a0 will help with iterating over the array again
+		
+second_for:	bge $s2, $t2, end_second_for	# Break from the for loop if i = 10
+		jal psum		# Jump to psum function
+		addi $s2, $s2, 1	# Increment i
+		j second_for		# Jump back to beginning of loop
+		
+end_second_for:	# Print 'sum = '
+		li $v0, 4   		# Syscall number 4 will print string whose address is in $a0       
+		la $a0, strResult	# Load address of the string
+		syscall			# Actually print the string
+		
+		# Print value of sum
+		li $v0, 1		# Syscall 5 will print an integer
+		lw $a0, 0($s0)		# $s0 is pointing to sum AKA sump
+		syscall			# Make the syscall to print
+		
+		# Print a newline
+		li $v0, 4   		# Syscall number 4 will print string whose address is in $a0       
+		la $a0, strCR		# Load address of the string
+		syscall			# Make the syscall to print
+		
+		# Exit the program
+		li $v0, 10		# Load $v0 to exit
 		syscall
-		
-		# Exit
-		li $v0, 10  # Syscall number 10 is to terminate the program
-		syscall     # exit now		
-		
-		
-pSum:		
-		lw $t1, 0($a0)
-		lw $t2, 0($a1)
-		add $t2, $t2, $t1
-		sw $t2, 0($a0)
-		jr $ra		
-		
-mult:		li $t1, 0 # i = 0
-		li $t2, 0 # product = 0
-	
-loop:		bge $t1, $a1, loopExit # While i is less than y
-		add $t2, $t2, $a0 # product += x
-		add $t1, $t1, 1 # i++
-		
-		j loop
 
-loopExit:	move $v0, $t2 # Return product
-		jr $ra # Return to where mult was called from
+psum:		add $sp, $sp, 4		# Make room on the stack for return address
+		sw $ra, 0($sp)		# Save the return address on the stack
+		li $t0, 4		# Will be used to multiply i to get address offset
+		mul $t0, $s2, $t0	# offset = i * 4
+		add $a1, $t0, $s1	# $a1 = a+i
+		lw $t0, ($a1)		# Load the value at that index
+		lw $t1, ($s0)		# Load the value of sump
+		add $t1, $t1, $t0	# Add value @ sump and value @ a+i
+		sw $t1, ($s0)		# Store value of sump back 
+		lw $ra, 0($sp)		# Load the return address
+		add $sp, $sp, -4	# Clean up stack
+		jr $ra
+		
 		

@@ -14,7 +14,7 @@
 #   }
 #   for  (int  i=0;  i<10;  i++)
 #   {
-#     PSum(sump,  a+i);
+#     PSum(sump,  a[i]);
 #   }
 # printf("?sum  =  %d\n"?,  sum);
 # }
@@ -36,24 +36,30 @@ main:		#add $sp, $sp, 4		# Make room on the stack for local variable sum
 		li $t1, 4		# This will be the address offset added to the array address
 		li $t2, 10		# This is the reference value for the for loops
 		li $t3, 3		# This value will be used to multiply (i+1)
-		move $a0, $s1		# $a0 will help with iterating over the array
+		move $t5, $s1		# $t5 will help with iterating over the array
 		
 first_for:	bge $s2, $t2, end_first_for	# Break from the for loop if i = 10
 		addi $t4, $s2, 1	# Add 1 to intermediate value
 		mul $t4, $t4, $t3	# $t4 = 3(i+1)
-		sw $t4, ($a0)		# Store 3(i+1) at the next address
-		add $a0, $a0, $t1	# Add the address offset to a0 for next iteration
+		sw $t4, ($t5)		# Store 3(i+1) at the next address
+		add $t5, $t5, $t1	# Add the address offset to t5 for next iteration
 		addi $s2, $s2, 1	# Increment i
 		and $t4, $t4, $zero	# Clear $t4 for next iteration
 		j first_for		# Jump back to beginning of loop
 		
 		
 end_first_for:	move $s2, $zero		# Reset i variable
-		move $a0, $s1		# $a0 will help with iterating over the array again
+		move $t5, $s1		# $t5 will help with iterating over the array again
 		
 second_for:	bge $s2, $t2, end_second_for	# Break from the for loop if i = 10
+		
+		move $a0, $s0		# Store the address of $s0 into $a0
+		move $a1, $t5		# Store the address of $t5 into $a0
 		jal psum		# Jump to psum function
+		
 		addi $s2, $s2, 1	# Increment i
+		
+		add $t5, $t5, $t1
 		j second_for		# Jump back to beginning of loop
 		
 end_second_for:	# Print 'sum = '
@@ -75,17 +81,22 @@ end_second_for:	# Print 'sum = '
 		li $v0, 10		# Load $v0 to exit
 		syscall
 
-psum:		add $sp, $sp, 4		# Make room on the stack for return address
+psum:		add $sp, $sp, -12	# Make room on the stack for three variables
 		sw $ra, 0($sp)		# Save the return address on the stack
-		li $t0, 4		# Will be used to multiply i to get address offset
-		mul $t0, $s2, $t0	# offset = i * 4
-		add $a1, $t0, $s1	# $a1 = a+i
-		lw $t0, ($a1)		# Load the value at that index
-		lw $t1, ($s0)		# Load the value of sump
-		add $t1, $t1, $t0	# Add value @ sump and value @ a+i
-		sw $t1, ($s0)		# Store value of sump back 
+		sw $t0, 4($sp)		# Save $t0 on the stack
+		sw $t1, 8($sp)		# Save $t1 on the stack
+
+		
+		lw $t0, 0($a0)		# Load the value stored in the address at $a0 into $t0
+		lw $t1, 0($a1)		# Load the value stored in the address at $a1 into $t1
+		
+		add $t0, $t0, $t1 	# Add $t0 to $t1
+		sw $t0, 0($a0)		# Store the sum into the address that the sum was passed into with
+		
+		lw $t1, 8($sp)		# Load $t1
+		lw $t0, 4($sp)		# Load $t0
 		lw $ra, 0($sp)		# Load the return address
-		add $sp, $sp, -4	# Clean up stack
+		add $sp, $sp, 12	# Clean up stack
 		jr $ra
 		
 		
